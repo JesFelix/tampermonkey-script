@@ -1,12 +1,11 @@
 // ==UserScript==
 // @name         抖音当前视频下载辅助
-// @namespace    douyindownload
-// @version      0.2.0
+// @namespace    douyin-download
+// @version      0.0.2
 // @description  下载当前全屏播放器正在播放的视频
-// @author       You
+// @author       JesFelix
 // @match        https://www.douyin.com/**
 // @icon         https://a.favicon.im/www.douyin.com
-// @run-at       document-start
 // @grant        none
 // ==/UserScript==
 

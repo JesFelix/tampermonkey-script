@@ -1,20 +1,10 @@
 // ==UserScript==
 // @name         黄果短剧
-// @namespace    picture-in-picture
-// @version      2026-09-21
+// @namespace    huangguo-short-drama
+// @version      0.0.2
 // @description  黄果去播放页面广告、添加小窗播放按钮
 // @author       JesFelix
-// @match        https://huangguoai.com/video/**
-// @match        https://vt7s.juatinpqz.com/video/**
-// @match        https://d5gpb.juatinpqz.com/video/**
-// @match        https://tois.juatinpqz.com/video/**
-// @match        https://rq3f.zlgncitla.cc/video/**
-// @match        https://rn5lk.fejivxks.cc/video/**
-// @match        https://e1nqgm.fejivxks.cc/video/**
-// @match        https://uwux.fejivxks.cc/video/**
-// @match        https://ffpoe.fejivxks.cc/video/**
-// @match        https://jxyr.vqojfzoq.cc/video/**
-// @match        https://mx4ueb.vqojfzoq.cc/video/**
+// @match        https://*/video/**
 // @icon         https://a.favicon.im/huangguoai.com
 // @grant        none
 // ==/UserScript==
