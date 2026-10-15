@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         黄果短剧
 // @namespace    huangguo-short-drama
-// @version      0.0.2
+// @version      0.0.3
 // @description  黄果去播放页面广告、添加小窗播放按钮
 // @author       JesFelix
 // @match        https://*/video/**
@@ -20,11 +20,13 @@
 
     function handleTarget(el) {
         console.log('✅ 找到目标元素:', el);
-        // TODO: 添加小窗播放按钮
+        // 页面可能重渲染工具栏，避免重复插入按钮。
+        if (el.querySelector('[data-huangguo-pip]')) return;
         const secondIcon = el.querySelectorAll('xg-icon')[1];
 
         // 创建新的小窗播放按钮 (xg-icon 自定义元素)
         const pipIcon = document.createElement('xg-icon');
+        pipIcon.dataset.huangguoPip = 'true';
         pipIcon.innerHTML = SVG_ICON;
 
         // 设置样式，使其与周围图标风格一致
@@ -37,7 +39,39 @@
             margin-left: 10px;
         `;
 
-        pipIcon.title = "小窗播放"
+        pipIcon.title = "小窗播放（等待视频加载）";
+        pipIcon.style.opacity = '0.5';
+
+        let selectedVideo = null;
+        const videoReady = video => video && video.readyState >= HTMLMediaElement.HAVE_METADATA;
+
+        // 优先选择有画面且正在播放的视频，其次选择已经加载元数据的视频。
+        function findVideo() {
+            const videos = Array.from(document.querySelectorAll('video'));
+            return videos.find(v => !v.paused && !v.ended && videoReady(v))
+                || videos.find(videoReady)
+                || videos.find(v => !v.paused && !v.ended)
+                || videos[0]
+                || null;
+        }
+
+        function refreshVideo() {
+            const video = findVideo();
+            if (selectedVideo && selectedVideo !== video) {
+                selectedVideo.removeEventListener('loadedmetadata', refreshVideo);
+                selectedVideo.removeEventListener('emptied', refreshVideo);
+            }
+            selectedVideo = video;
+            if (video) {
+                video.addEventListener('loadedmetadata', refreshVideo);
+                video.addEventListener('emptied', refreshVideo);
+            }
+            const ready = videoReady(video);
+            pipIcon.style.opacity = ready ? '1' : '0.5';
+            pipIcon.title = ready ? '小窗播放' : '等待视频加载完成后可开启小窗';
+        }
+
+        refreshVideo();
 
         // 在第二个图标后面插入新图标
         if (secondIcon && secondIcon.parentNode) {
@@ -54,26 +88,17 @@
             e.stopPropagation();
 
             try {
-                // 尝试获取页面上的视频元素
-                var video = document.querySelector('video');
-
-                if (!video) {
-                    console.warn('[PiP] 未找到 video 元素，尝试查找所有 video');
-                    var videos = document.querySelectorAll('video');
-                    if (videos.length > 0) {
-                        // 取第一个有 src 或正在播放的视频
-                        for (var i = 0; i < videos.length; i++) {
-                            var v = videos[i];
-                            if (v.src || v.currentSrc || !v.paused) {
-                                video = v;
-                                break;
-                            }
-                        }
-                    }
-                }
+                refreshVideo();
+                const video = selectedVideo;
 
                 if (!video) {
                     console.warn('[PiP] 仍未找到可用的视频元素');
+                    return;
+                }
+
+                // 不能在未加载元数据时请求 PiP；等待事件后再请求通常会失去浏览器的用户手势授权。
+                if (!videoReady(video)) {
+                    console.info('[PiP] 视频仍在加载，请等画面出现后再次点击');
                     return;
                 }
 
@@ -101,16 +126,6 @@
 
             } catch (err) {
                 console.error('[PiP] 画中画请求失败:', err.message);
-                // 降级方案：在新窗口中打开视频
-                console.log('[PiP] 尝试降级方案：在新窗口中打开视频');
-                try {
-                    var videoEl = document.querySelector('video');
-                    if (videoEl && videoEl.src) {
-                        window.open(videoEl.src, '_blank', 'width=800,height=600');
-                    }
-                } catch (fallbackErr) {
-                    console.error('[PiP] 降级方案也失败:', fallbackErr);
-                }
             }
         });
 
@@ -137,14 +152,28 @@
         const el = document.querySelector(SELECTOR);
         if (el) {
             observer2.disconnect(); // 找到后立即断开，释放资源
+            clearTimeout(observerTimeout);
             handleTarget(el);
         }
     });
 
     observer2.observe(document.body, { childList: true, subtree: true });
 
+    // 视频元素可能在按钮出现之后才由播放器挂载，持续刷新按钮对应的视频状态。
+    const videoObserver = new MutationObserver(() => {
+        const button = document.querySelector('[data-huangguo-pip]');
+        if (!button) return;
+        // 事件绑定在按钮自身的闭包中；触发其后代变更时，刷新由独立事件处理器完成。
+        const video = document.querySelector('video');
+        if (video && video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+            button.style.opacity = '1';
+            button.title = '小窗播放';
+        }
+    });
+    videoObserver.observe(document.body, { childList: true, subtree: true });
+
     // 3. 超时保护，防止无限监听
-    setTimeout(() => {
+    const observerTimeout = setTimeout(() => {
         observer2.disconnect();
         console.warn('⏰ 超时：未在', TIMEOUT, 'ms 内找到', SELECTOR);
     }, TIMEOUT);
